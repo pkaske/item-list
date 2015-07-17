@@ -1,0 +1,333 @@
+<!--
+@license
+Copyright (c) 2015 Peter Kaske <p.kaske@gmail.com>. All rights reserved.
+This code may only be used under the MIT license found at http://opensource.org/licenses/MIT.
+Or see the LICENSE file that comes with this code.
+-->
+
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../fast-fuzzy-search/fast-fuzzy-search.html">
+<link rel="import" href="../iron-selector/iron-selector.html">
+<link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+
+<!--
+Simple list of items that can be used to build drop-downs or other item list based things. Build with Polymer.
+
+@group GUI Elements
+@element item-list-crudbox
+@demo demo/index.html
+@homepage https://pkaske.github.io/item-list-crudbox
+-->
+
+<dom-module id="item-list">
+  <style>
+    :host {
+      display: block;
+      background: #FAFAFA;
+      outline: 0;
+      position: relative;
+
+      @apply(--item-list);
+    }
+
+    div.item:focus {
+      background: #EEEEEE;
+    }
+
+    div.item.iron-selected {
+      background: #4FC3F7;
+      color: #FFFFFF;
+    }
+
+    .item {
+      outline: 0;
+      @apply(--layout-horizontal);
+      @apply(--layout-center);
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+
+    .item:hover {
+      background: #E0F7FA;
+    }
+  </style>
+  <template>
+    <!-- Provides fuzzy search -->
+    <fast-fuzzy-search id="fuzzySearch" term="[[filterTerm]]" path="[[paths.search]]" input="[[items]]" output={{_filteredItems}}></fast-fuzzy-search>
+
+    <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{selection}}">
+      <template is="dom-repeat" items="{{_filteredItems}}">
+        <div item-id$="{{_computeItemId(item)}}" class="item">
+          <div class="label">{{item.name}}</div>
+        </div>
+      </template>
+    </iron-selector>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'item-list',
+
+      properties: {
+        /**
+         * List items to render
+         * @type {Array}
+         */
+        items: {
+          type: Array
+        },
+
+        selection: {
+          type: String,
+          notify: true,
+          observer: '_updateSelectedItem'
+        },
+
+        /**
+         * The currently selected item.
+         */
+        item: {
+          type: Object
+        },
+
+        /**
+         * Paths inside the item objects to find various infos to build and run the list:
+         * Uses Polymer.Base.get() compatible syntax.
+         *
+         * id: The id for the list entries (Default: 'id')
+         * search: The field to perform the fuzzy searches in (Default: 'label')
+         */
+        paths: {
+          type: Object,
+          value: function(obj) {
+            var setPaths = obj.paths || {};
+
+            return this.mixin({
+              id: 'id',
+              search: 'label'
+            }, setPaths);
+          }
+        },
+
+        focusedItem: {
+          type: Object,
+          observer: '_focusedItemChanged'
+        },
+
+        /**
+         * The list will be narrowed down to only the matching itmes.
+         */
+        filterTerm: {
+          type: String,
+          value: ''
+        },
+
+        /**
+         * The element will search for the first matching item and focus it.
+         */
+        searchTerm: {
+          type: String,
+          value: '',
+          observer: '_searchTermChanged'
+        },
+
+        _filteredItems: {
+          type: Array,
+          value: [],
+          observer: '_filteredItemsChanged'
+        }
+      },
+
+      behaviors: [
+        Polymer.IronA11yKeysBehavior
+      ],
+
+      hostAttributes: {
+        'role': 'menu',
+        'tabindex': '0'
+      },
+
+      listeners: {
+        'focus': '_onFocusHost',
+        'blur': '_onBlurHost',
+        'keydown': '_onKeyDown'
+      },
+
+      keyBindings: {
+        // 'esc': '_onEscKey',
+        'enter': '_onEnterKey'
+      },
+
+      setItems: function(newItems) {
+        this.set('items', newItems);
+        this.$.fuzzySearch.reload();
+        this.searchTerm = '';
+        this._restoreSelection();
+      },
+
+      addItem: function(item) {
+        this.push(items, item);
+        this.searchTerm = '';
+        this.$.fuzzySearch.reload();
+      },
+
+      removeItem: function(index) {
+        this.splice(index, 1);
+        this.$.fuzzySearch.reload();
+        this.searchTerm = '';
+        this._restoreSelection();
+      },
+
+      _getElementByItem: function(item) {
+        return Polymer.dom(this.$.list).querySelector('[item-id="' + this.get(this.paths.id, item) + '"]');
+      },
+
+      _getElementById: function(id) {
+        return Polymer.dom(this.$.list).querySelector('[item-id="' + id + '"]');
+      },
+
+      _getItemById: function(id) {
+        for (var i = 0, li = this.items.length; i < li; ++i) {
+          if (this.get(this.paths.id, this.items[i]) == id) {
+            return this.items[i];
+          }
+        }
+      },
+
+      _getItemIndex: function(item) {
+        var id = this.get(this.paths.id, item);
+        for (var i = 0, li = this._filteredItems.length; i < li; ++i) {
+          if (this.get(this.paths.id, this._filteredItems[i]) == id) {
+            return i;
+          }
+        }
+      },
+
+      /** Try to restore the item selection after some model manipulation was done */
+      _restoreSelection: function() {
+        var oldSelection = this.selection;
+        this.$.list.select(null);
+        this.async(function() {
+          if (this._getElementById(oldSelection)) {
+            this.$.list.select(oldSelection);
+          }
+        });
+      },
+
+      _updateSelectedItem: function() {
+        this.selectedItem = this._getItemById(this.selection);
+        this.focusedItem = this.selectedItem;
+      },
+
+      /**
+       * Generate's the ids for all items in the list.
+       * @param  {Object} item The current item.
+       * @return {String}      The id for the current item.
+       */
+      _computeItemId: function(item) {
+        return this.get(this.paths.id, item);
+      },
+
+      /**
+       * Fires the items-filtered event.
+       */
+      _filteredItemsChanged: function() {
+        this.fire('items-filtered', this._filteredItems);
+      },
+
+      /** Accessibility stuff */
+
+      _onFocusHost: function(event) {
+        this.blur();
+        if (this.selectedItem) {
+          this.focusedItem = this.selectedItem;
+        }
+
+        if (!this.focusedItem && this._filteredItems.length > 0) {
+          this.focusedItem = this._filteredItems[0];
+        }
+      },
+
+      _onBlurHost: function() {
+        this._searchTerm = '';
+      },
+
+      _onKeyDown: function(e) {
+        // Reset focus search on special keys.
+        if (this.keyboardEventMatchesKeys(e, 'enter esc up down left right tab')) {
+          this.searchTerm = '';
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'up left')) {
+          this._focusPrev();
+          e.preventDefault();
+          return false;
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'down right')) {
+          this._focusNext();
+          e.preventDefault();
+          return false;
+        }
+
+        var char = String.fromCharCode(e.keyCode);
+        if (!char.match(/[^\x20-\x7E]+/)) {
+          this.searchTerm += char;
+        }
+      },
+
+      _onEnterKey: function() {
+        if (this.focusedItem) {
+          this.selection = this.get(this.paths.id, this.focusedItem);
+        }
+      },
+
+      _searchTermChanged: function(term) {
+        if (term.length == 0) return;
+
+        var result = this.$.fuzzySearch.sideSearch(term, this._filteredItems, this.paths.search);
+        if (result.length > 0) {
+          this.focusedItem = result[0];
+        }
+      },
+
+      /** Focus the previous item */
+      _focusPrev: function() {
+        var length = this._filteredItems.length;
+        var index = (this._getItemIndex(this.focusedItem) - 1 + length) % length;
+        this.focusedItem = this._filteredItems[index];
+      },
+
+      /** Focus the next item */
+      _focusNext: function() {
+        var length = this._filteredItems.length;
+        var index = (this._getItemIndex(this.focusedItem) + 1) % length;
+        this.focusedItem = this._filteredItems[index];
+      },
+
+      /** Focus the selected item or the first item in the list. */
+      _focusedItemChanged: function(item, oldItem) {
+        if (oldItem) {
+          var oldEl = this._getElementByItem(oldItem);
+          if (oldEl) {
+            oldEl.setAttribute('tabindex', '-1');
+          }
+        }
+
+        // Focus the new element.
+        if (item) {
+          var el = this._getElementByItem(item);
+          el.setAttribute('tabindex', '0');
+          el.focus();
+        } else {
+          // Remove focus from all items.
+          Polymer.dom(this.$.list).querySelectorAll('[item-id]').forEach(function(el) {
+            el.setAttribute('tabindex', '-1');
+            el.blur();
+          });
+        }
+      }
+    });
+  </script>
+</dom-module>

@@ -1,0 +1,31 @@
+{
+  "name": "item-list",
+  "version": "1.0.0",
+  "authors": [
+    "Peter Kaske <p.kaske@gmail.com>"
+  ],
+  "description": "Simple list of items that can be used to build drop-downs or other item list based things. Build with Polymer.",
+  "license": "MIT",
+  "keywords": [
+    "polymer",
+    "web-components",
+    "web-component",
+    "list",
+    "filter"
+  ],
+  "main": "item-list.html",
+  "ignore": [
+    "/.*",
+    "/test/",
+    "/demo/"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0",
+    "iron-selector": "PolymerElements/iron-selector#^1.0.0",
+    "fast-fuzzy-search": "pkaske/fast-fuzzy-search#^1.0.0",
+    "iron-a11y-keys": "PolymerElements/iron-a11y-keys#^1.0.0"
+  },
+  "devDependencies": {
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0"
+  }
+}
