@@ -26,35 +26,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     input[type="text"] {
-      margin-bottom: 20px;
+      margin-bottom: 50px;
     }
   </style>
 
 </head>
 <body style="">
-  <input type="text" name="filter-simple-menu" value="10">
+  <input type="text" name="filter-simple-menu" value="">
   <div>
-    <item-list id="simple-menu" filter-term="10" paths='{ "search": "name", "id": "name" }' id-path="name"></item-list>
+    <item-list id="simple-menu" selection="Menu Item 2" filter-term="" paths='{ "search": "name", "id": "name", "disabled": "disabled" }' id-path="name">
+      <template>
+        <div class="item">
+          <div class="label">{{item.name}}</div>
+        </div>
+      </template>
+    </item-list>
   </div>
   <script>
   window.addEventListener('WebComponentsReady', function(e) {
     var simpleMenuFilter = document.getElementsByName('filter-simple-menu')[0];
     var simpleMenu = document.getElementById('simple-menu');
-    simpleMenu.items = [
-      { name: 'Menu Item 100' },
-      { name: 'Menu Item 20' },
-      { name: 'Menu Item 3' },
-      { name: 'Menu Item 4' },
-      { name: 'Menu Item 5' },
-      { name: 'Menu Item 6' },
-      { name: 'Menu Item 7' },
-      { name: 'Menu Item 8' },
-      { name: 'Menu Item 9' },
-      { name: 'Menu Item 10' }
-    ];
+
+    var data = [];
+    for (var i = 1; i <= 20; ++i) {
+      data.push({
+        name: 'Menu Item ' + i,
+        disabled: i % 5 ? true : false
+      });
+    }
+
+    simpleMenu.items = data;
+
+    simpleMenu.pathFunctions.id = function(item) {
+      return item.name;
+    };
+
+    simpleMenu.pathFunctions.disabled = function(item) {
+      return item.name == 'Menu Item 3';
+    };
 
     simpleMenuFilter.addEventListener('keyup', function() {
       simpleMenu.filterTerm = simpleMenuFilter.value;
+    });
+
+    simpleMenu.addEventListener('selection-changed', function(e) {
+      console.log(e.detail.value);
     });
   });
   </script>
