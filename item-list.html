@@ -10,14 +10,36 @@ Or see the LICENSE file that comes with this code.
 <link rel="import" href="../iron-selector/iron-selector.html">
 <link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
 <link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../lazy-dom-repeat/lazy-dom-repeat.html">
 
 <!--
-Simple list of items that can be used to build drop-downs or other item list based things. Build with Polymer.
+# item-list
+Simple list of items that can be used to build drop-downs or other item list based things.
+
+
+## Example
+Use the `item` property to set a array of data objects to fill the list.
+
+The `paths` property can be used to tell `item-list` were to get values from the item objects for various actions:
+
+`paths.id`: The path to the property of each item to use as the `id`.
+
+`paths.search`: The path to the property of each item it should use to perform searches in. This is for filter and for focus search.
+
+`paths.disabled`: The path to the property to do a check on. If the property equals '1', true or 'true' the item is considered disabled.
+
+```html
+<item-list selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
+  <template>
+    <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
+  </template>
+</item-list>
+```
 
 @group GUI Elements
-@element item-list-crudbox
+@element item-list
 @demo demo/index.html
-@homepage https://pkaske.github.io/item-list-crudbox
+@homepage https://pkaske.github.io/item-list
 -->
 
 <dom-module id="item-list">
@@ -33,11 +55,15 @@ Simple list of items that can be used to build drop-downs or other item list bas
 
     div.item:focus {
       background: #EEEEEE;
+
+      @apply(--item-list-item-focus);
     }
 
     div.item:not([disabled]).iron-selected {
       background: #4FC3F7;
       color: #FFFFFF;
+
+      @apply(--item-list-selected);
     }
 
     .item {
@@ -45,28 +71,30 @@ Simple list of items that can be used to build drop-downs or other item list bas
       @apply(--layout-horizontal);
       @apply(--layout-center);
       cursor: pointer;
-      padding: 5px 10px;
+
+      @apply(--item-list-item);
     }
 
     .item:hover {
       background: #E0F7FA;
+
+      @apply(--item-list-item-hover);
     }
 
     .item[disabled] {
       color: #9E9E9E;
       pointer-events: none;
+
+      @apply(--item-list-disabled);
     }
   </style>
   <template>
     <!-- Provides fuzzy search -->
     <fast-fuzzy-search id="fuzzySearch" term="[[filterTerm]]" path="[[paths.search]]" input="[[items]]" output={{_filteredItems}}></fast-fuzzy-search>
 
+    <content id="itemTemplate"></content>
     <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
-      <template is="dom-repeat" items="{{_filteredItems}}">
-        <div item-id$="{{_computeItemId(item)}}" class="item" disabled$="{{_computeItemDisabled(item)}}">
-          <div class="label">{{item.name}}</div>
-        </div>
-      </template>
+      <lazy-dom-repeat id="ldr" items="[[_filteredItems]]"></lazy-dom-repeat>
     </iron-selector>
   </template>
   <script>
@@ -117,7 +145,6 @@ Simple list of items that can be used to build drop-downs or other item list bas
          * Every callback gets the current item as the first argument.
          *
          * id: Must return the id to set for the current item's element.
-         * search: Must return the haystack to search in.
          * disabled: Must return boolean true if the item disabled, false otherwise.
          */
         pathFunctions: {
@@ -207,6 +234,35 @@ Simple list of items that can be used to build drop-downs or other item list bas
         'enter': '_onEnterKey'
       },
 
+      /**
+       * Get the item template and fill it into the `lazy-dom-repeat`.
+       */
+      ready: function() {
+        var itemTemplate = Polymer.dom(this).querySelector('template');
+
+        if (!itemTemplate) {
+          console.warn(this.tagName + ': Missing item template');
+          return;
+        }
+
+        var wrap = document.createElement('div');
+        wrap.innerHTML = '<div item-id$="{{_computeItemId(item)}}" class="item" disabled$="{{isDisabled(item)}}"></div>';
+        var itemNode = wrap.childNodes[0];
+        itemNode.appendChild(itemTemplate.content);
+
+        var c = itemTemplate.content;
+        while (c.firstChild) {
+          c.removeChild(c.firstChild);
+        }
+
+        // Apply shady dom scoping.
+        Polymer.StyleTransformer.dom(itemNode, 'item-list');
+
+        itemTemplate.content.appendChild(itemNode);
+        Polymer.dom(this.$.ldr).appendChild(itemTemplate);
+        this.$.ldr.populate();
+      },
+
       setItems: function(newItems) {
         this.set('items', newItems);
         this.$.fuzzySearch.reload();
@@ -252,6 +308,22 @@ Simple list of items that can be used to build drop-downs or other item list bas
         }
       },
 
+      _moveSubAttribute: function(attr, id) {
+        var currentEl = Polymer.dom(this.$.list).querySelector('[' + attr + ']');
+        if (currentEl) {
+          currentEl.removeAttribute(attr);
+        }
+
+        var el = this._getElementById(id);
+        itemChildren = el.childNodes;
+
+        for (var i = 0, li = itemChildren.length; i < li; ++i) {
+          if (itemChildren[i].nodeType == Node.ELEMENT_NODE) {
+            itemChildren[i].setAttribute(attr, '');
+          }
+        }
+      },
+
       /** Try to restore the item selection after some model manipulation was done */
       _restoreSelection: function() {
         if (!this.selection) return;
@@ -269,10 +341,12 @@ Simple list of items that can be used to build drop-downs or other item list bas
         if (!tmpSelection) return;
 
         var item = this._getItemById(tmpSelection);
-        if (!this._computeItemDisabled(item)) {
+        if (!this.isDisabled(item)) {
           this.selectedItem = item;
           this._setFocusedItem(this.selectedItem);
           this.selection = tmpSelection;
+
+          this._moveSubAttribute('selected', tmpSelection);
         }
       },
 
@@ -297,6 +371,15 @@ Simple list of items that can be used to build drop-downs or other item list bas
         }
       },
 
+      isSelected: function(item) {
+        if (!item) return false;
+
+        var id = this.get(this.paths.id, item);
+        if (id != undefined && id == this._tmpSelection) {
+          return true;
+        }
+      },
+
       /**
        * Determines if a item is disabled.
        * This check can happen by providing a custom callback (set on `pathFunctions.disabled`).
@@ -308,7 +391,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
        * @param  {Object} item The item to check.
        * @return {Boolean}      True if disabled, false if enabled.
        */
-      _computeItemDisabled: function(item) {
+      isDisabled: function(item) {
         if (!item) return false;
 
         if (typeof this.pathFunctions.disabled == 'function') {
@@ -364,7 +447,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
 
           if (this._filteredItems.length > 0) {
             for (var i in this._filteredItems) {
-              if (!this._computeItemDisabled(this._filteredItems[i])) {
+              if (!this.isDisabled(this._filteredItems[i])) {
                 this._setFocusedItem(this._filteredItems[i]);
                 break;
               }
@@ -400,7 +483,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
       _onEnterKey: function() {
         if (this.focusedItem) {
           var id = this.get(this.paths.id, this.focusedItem);
-          if (id) {
+          if (id != undefined) {
             this._proxySelectionChange(id);
             this.$.list.select(id);
           }
@@ -414,7 +497,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
         if (result.length > 0) {
           // Find first non-disabled item and focus it.
           for (var i in result) {
-            if (!this._computeItemDisabled(result[i])) {
+            if (!this.isDisabled(result[i])) {
               this._setFocusedItem(result[i]);
               break;
             }
@@ -433,7 +516,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
         var index = (currentIndex - 1 + length) % length;
 
         // Find next 'previous' item that isn't disabled.
-        while (this._computeItemDisabled(this._filteredItems[index])) {
+        while (this.isDisabled(this._filteredItems[index])) {
           index = (index - 1 + length) % length;
           if (index == currentIndex) break;
         }
@@ -447,7 +530,7 @@ Simple list of items that can be used to build drop-downs or other item list bas
         var index = (currentIndex + 1 + length) % length;
 
         // Find next 'previous' item that isn't disabled.
-        while (this._computeItemDisabled(this._filteredItems[index])) {
+        while (this.isDisabled(this._filteredItems[index])) {
           index = (index + 1 + length) % length;
           if (index == currentIndex) break;
         }
@@ -473,7 +556,12 @@ Simple list of items that can be used to build drop-downs or other item list bas
         // Focus the new element.
         if (item) {
           var el = this._getElementByItem(item);
-          if (el.hasAttribute('disabled')) return;
+          if (!el || el.hasAttribute('disabled')) return;
+
+          var id = this.get(this.paths.id, item);
+          if (id != undefined) {
+            this._moveSubAttribute('focused', id);
+          }
 
           this.focusedItem = item;
           el.setAttribute('tabindex', '0');

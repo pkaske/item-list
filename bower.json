@@ -1,6 +1,6 @@
 {
   "name": "item-list",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "authors": [
     "Peter Kaske <p.kaske@gmail.com>"
   ],
@@ -23,9 +23,11 @@
     "polymer": "Polymer/polymer#^1.0.0",
     "iron-selector": "PolymerElements/iron-selector#^1.0.0",
     "fast-fuzzy-search": "pkaske/fast-fuzzy-search#^1.0.0",
-    "iron-a11y-keys": "PolymerElements/iron-a11y-keys#^1.0.0"
+    "iron-a11y-keys": "PolymerElements/iron-a11y-keys#^1.0.0",
+    "lazy-dom-repeat": "pkaske/lazy-dom-repeat#^1.0.0"
   },
   "devDependencies": {
-    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0"
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
+    "iron-icon": "PolymerElements/iron-icon#^1.0.0"
   }
 }
