@@ -223,7 +223,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       listeners: {
-        'blur': '_onBlurHost',
         'keydown': '_onKeyDown',
         'keyup': '_onKeyUp',
         'tap': '_onTap'
@@ -232,6 +231,14 @@ The `paths` property can be used to tell `item-list` were to get values from the
       keyBindings: {
         // 'esc': '_onEscKey',
         'enter': '_onEnterKey'
+      },
+
+      attached: function() {
+        this.addEventListener('blur', this._onBlurHost.bind(this), true);
+      },
+
+      detached: function() {
+        this.removeEventListener('blur', this._onBlurHost);
       },
 
       /**
@@ -267,20 +274,40 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.set('items', newItems);
         this.$.fuzzySearch.reload();
         this.searchTerm = '';
-        this._restoreSelection();
       },
 
-      addItem: function(item) {
-        this.push(items, item);
-        this.searchTerm = '';
+      addItems: function(item) {
+        if (Array.isArray(item)) {
+          for (var i = 0, li = item.length; i < li; ++i) {
+            this.push('items', item[i]);
+          }
+        } else {
+          this.push('items', item);
+        }
+
         this.$.fuzzySearch.reload();
+        this.searchTerm = '';
+
+        this.fire('items-added', { added: item, items: this.items });
       },
 
       removeItem: function(index) {
-        this.splice(index, 1);
+        if (typeof index == 'object') {
+          index = this._getItemIndex(index);
+        }
+
+        if (index == undefined) return;
+
+        var removedItem = this.splice('items', index, 1);
         this.$.fuzzySearch.reload();
         this.searchTerm = '';
-        this._restoreSelection();
+
+        if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
+          this.selection = null;
+          this.selectedItem = null;
+        }
+
+        this.fire('item-removed', { removed: removedItem[0], items: this.items });
       },
 
       _getElementByItem: function(item) {
@@ -326,7 +353,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
       /** Try to restore the item selection after some model manipulation was done */
       _restoreSelection: function() {
-        if (!this.selection) return;
+        if (this.selection == undefined || this.selection == null) return;
 
         var oldSelection = this.selection;
         this.$.list.select(null);
@@ -338,7 +365,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       _proxySelectionChange: function(tmpSelection) {
-        if (!tmpSelection) return;
+        if (tmpSelection == undefined || tmpSelection == null) return;
 
         var item = this._getItemById(tmpSelection);
         if (!this.isDisabled(item)) {
@@ -351,7 +378,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       _selectionChanged: function(select, oldSelection) {
-        if (!oldSelection) return;
+        if (oldSelection == undefined) return;
 
         this.async(function() {
           this._tmpSelection = select;
@@ -416,11 +443,15 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
       /** Accessibility stuff */
 
-      _onBlurHost: function() {
+      _onBlurHost: function(e) {
+        if (Polymer.dom(e).rootTarget.tagName != 'ITEM-LIST') {
+          this._gotFocus = false;
+        }
         this._searchTerm = '';
       },
 
       _onTap: function() {
+        this.blur();
         this._gotFocus = true;
         if (this.selectedItem) {
           var el = this._getElementByItem(this.selectedItem);
@@ -435,7 +466,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
         // Element was focused by tab key.
         if (this.keyboardEventMatchesKeys(e, 'shift+tab tab')) {
           this.blur();
-
           this._gotFocus = true;
           if (this.selectedItem) {
             var el = this._getElementByItem(this.selectedItem);
@@ -472,6 +502,10 @@ The `paths` property can be used to tell `item-list` were to get values from the
           this._focusNext();
           e.preventDefault();
           return false;
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'shift+tab tab')) {
+          this._gotFocus = false;
         }
 
         var char = String.fromCharCode(e.keyCode);
@@ -521,6 +555,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
           if (index == currentIndex) break;
         }
         this._setFocusedItem(this._filteredItems[index]);
+        this._gotFocus = true;
       },
 
       /** Focus the next item */
@@ -535,6 +570,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
           if (index == currentIndex) break;
         }
         this._setFocusedItem(this._filteredItems[index]);
+        this._gotFocus = true;
       },
 
       /** Focus the selected item or the first item in the list. */
@@ -565,7 +601,9 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
           this.focusedItem = item;
           el.setAttribute('tabindex', '0');
-          el.focus();
+          if (this._gotFocus) {
+            el.focus();
+          }
         } else {
           // Remove focus from all items.
           Polymer.dom(this.$.list).querySelectorAll('[item-id]').forEach(function(el) {
