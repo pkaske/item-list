@@ -11,6 +11,7 @@ Or see the LICENSE file that comes with this code.
 <link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
 <link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
 <link rel="import" href="../lazy-dom-repeat/lazy-dom-repeat.html">
+<link rel="import" href="../iron-form-element-behavior/iron-form-element-behavior.html">
 
 <!--
 # item-list
@@ -215,7 +216,8 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       behaviors: [
-        Polymer.IronA11yKeysBehavior
+        Polymer.IronA11yKeysBehavior,
+        Polymer.IronFormElementBehavior
       ],
 
       hostAttributes: {
@@ -274,6 +276,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.set('items', newItems);
         this.$.fuzzySearch.reload();
         this.searchTerm = '';
+        this._setValue();
       },
 
       addItems: function(item) {
@@ -302,6 +305,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
           this.set('_filteredItems.' + index + (path ? '.' + path : ''), value)
         }
 
+        this._setValue();
         this.fire('item-edited', { edited: this.items[index], items: this.items });
       },
 
@@ -320,6 +324,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
           this.selectedItem = null;
         }
 
+        this._setValue();
         this.fire('item-removed', { removed: removedItem[0], items: this.items });
       },
 
@@ -364,6 +369,11 @@ The `paths` property can be used to tell `item-list` were to get values from the
         }
       },
 
+      _setValue: function() {
+        // For iron-form compatibility.
+        this.value = { selection: this.selection, items: this.items };
+      },
+
       /** Try to restore the item selection after some model manipulation was done */
       _restoreSelection: function() {
         if (this.selection == undefined || this.selection == null) return;
@@ -394,6 +404,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         if (oldSelection == undefined) return;
 
         this.async(function() {
+          this._setValue();
           this._tmpSelection = select;
         }, 50);
       },
@@ -451,6 +462,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
        */
       _filteredItemsChanged: function(filterItems) {
         this._restoreSelection();
+        this._setValue();
         this.fire('items-filtered', this._filteredItems);
       },
 

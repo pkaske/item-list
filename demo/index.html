@@ -23,6 +23,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../iron-icon/iron-icon.html">
   <link rel="import" href="../../iron-icons/iron-icons.html">
   <link rel="import" href="../../iron-flex-layout/classes/iron-flex-layout.html">
+  <link rel="import" href="../../iron-form/iron-form.html">
 
   <style is="custom-style">
     body > div {
@@ -50,18 +51,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     input[type="text"] {
       margin-bottom: 20px;
     }
+
+    #output {
+      width: 300px;
+    }
   </style>
 
 </head>
 <body class="layout horizontal">
   <div class="layout vertical">
     <span>Filter me:</span>
-    <input type="text" name="filter-simple-menu" value="">
-    <item-list id="simple-menu" selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
-      <template>
-        <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
-      </template>
-    </item-list>
+    <form is="iron-form" id="listForm" method="post" action="/" class="layout vertical">
+
+      <input type="text" name="the-filter" value="">
+
+      <item-list id="simple-menu" name="the-menu" selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
+        <template>
+          <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
+        </template>
+      </item-list>
+
+      <p>
+        <button>Send me</button><br>
+        <br>
+        Output of the form:<br>
+        <div id="output"></div>
+      </p>
+
+    </form>
   </div>
   <div class="layout vertical">
     <p>
@@ -75,7 +92,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </div>
   <script>
   window.addEventListener('WebComponentsReady', function(e) {
-    var simpleMenuFilter = document.getElementsByName('filter-simple-menu')[0];
+    var simpleMenuFilter = document.getElementsByName('the-filter')[0];
     var simpleMenu = document.getElementById('simple-menu');
 
     var data = [];
@@ -103,6 +120,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     simpleMenu.addEventListener('selection-changed', function(e) {
       console.log(e.detail.value);
+    });
+
+    document.getElementById('listForm').addEventListener('iron-form-submit', function() {
+      var output = document.getElementById('output');
+      output.innerHTML = JSON.stringify(event.detail);
     });
   });
   </script>
