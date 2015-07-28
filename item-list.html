@@ -229,7 +229,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       keyBindings: {
-        // 'esc': '_onEscKey',
         'enter': '_onEnterKey'
       },
 
@@ -291,15 +290,28 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.fire('items-added', { added: item, items: this.items });
       },
 
+      editItem: function(index, value, path) {
+        if (typeof index === 'object') {
+          var rIndex = this._getItemIndex(index, this.items);
+          index = this._getItemIndex(index, this._filteredItems);
+        }
+
+        this.set('items.' + (rIndex != undefined ? rIndex : index) + (path != undefined ? '.' + path : ''), value);
+        if (path) {
+          this.set('_filteredItems.' + index + (path ? '.' + path : ''), value)
+        }
+
+        this.fire('item-edited', { edited: this.items[index], items: this.items });
+      },
+
       removeItem: function(index) {
-        if (typeof index == 'object') {
-          index = this._getItemIndex(index);
+        if (typeof index === 'object') {
+          index = this._getItemIndex(index, this.items);
         }
 
         if (index == undefined) return;
 
         var removedItem = this.splice('items', index, 1);
-        this.$.fuzzySearch.reload();
         this.searchTerm = '';
 
         if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
@@ -326,10 +338,10 @@ The `paths` property can be used to tell `item-list` were to get values from the
         }
       },
 
-      _getItemIndex: function(item) {
+      _getItemIndex: function(item, items) {
         var id = this.get(this.paths.id, item);
-        for (var i = 0, li = this._filteredItems.length; i < li; ++i) {
-          if (this.get(this.paths.id, this._filteredItems[i]) == id) {
+        for (var i = 0, li = items.length; i < li; ++i) {
+          if (this.get(this.paths.id, items[i]) == id) {
             return i;
           }
         }
@@ -369,7 +381,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
         var item = this._getItemById(tmpSelection);
         if (!this.isDisabled(item)) {
-          this.selectedItem = item;
+          this.selectedItem = this.mixin({}, item);
           this._setFocusedItem(this.selectedItem);
           this.selection = tmpSelection;
 
@@ -442,6 +454,15 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       /** Accessibility stuff */
+
+      focus: function() {
+        if (this._filteredItems.length == 0) return;
+
+        this.async(function() {
+          this._gotFocus = true;
+          this._setFocusedItem(this.selectedItem || this._filteredItems[0]);
+        }, 50);
+      },
 
       _onBlurHost: function(e) {
         if (Polymer.dom(e).rootTarget.tagName != 'ITEM-LIST') {
@@ -546,7 +567,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
       /** Focus the previous item */
       _focusPrev: function() {
         var length = this._filteredItems.length;
-        var currentIndex = this._getItemIndex(this.focusedItem);
+        var currentIndex = this._getItemIndex(this.focusedItem, this._filteredItems);
         var index = (currentIndex - 1 + length) % length;
 
         // Find next 'previous' item that isn't disabled.
@@ -561,7 +582,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
       /** Focus the next item */
       _focusNext: function() {
         var length = this._filteredItems.length;
-        var currentIndex = this._getItemIndex(this.focusedItem);
+        var currentIndex = this._getItemIndex(this.focusedItem, this._filteredItems);
         var index = (currentIndex + 1 + length) % length;
 
         // Find next 'previous' item that isn't disabled.
@@ -573,7 +594,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this._gotFocus = true;
       },
 
-      /** Focus the selected item or the first item in the list. */
+      /** Focus a item in the list. */
       _setFocusedItem: function(item) {
         if (!this._gotFocus) return; // Prevents focus on attach.
 
