@@ -92,9 +92,10 @@ The `paths` property can be used to tell `item-list` were to get values from the
     <!-- Provides fuzzy search -->
     <fast-fuzzy-search id="fuzzySearch" term="[[filterTerm]]" path="[[paths.search]]" input="[[items]]" output={{_filteredItems}}></fast-fuzzy-search>
 
-    <content id="itemTemplate"></content>
     <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
-      <lazy-dom-repeat id="ldr" items="[[_filteredItems]]"></lazy-dom-repeat>
+      <lazy-dom-repeat id="ldr" items="[[_filteredItems]]">
+        <content id="itemTemplate" select="template"></content>
+      </lazy-dom-repeat>
     </iron-selector>
   </template>
   <script>
