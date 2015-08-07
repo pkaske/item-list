@@ -20,6 +20,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </script>
   <link rel="import" href="../item-list.html">
   <link rel="import" href="simple-item.html">
+  <link rel="import" href="x-foo.html">
   <link rel="import" href="../../iron-icon/iron-icon.html">
   <link rel="import" href="../../iron-icons/iron-icons.html">
   <link rel="import" href="../../iron-flex-layout/classes/iron-flex-layout.html">
@@ -89,6 +90,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         <div class="">{{item.value}}</div>
       </template>
     </item-list>
+  </div>
+  <div class="layout vertical">
+    <p>
+      item-list used inside another custom element.<br>
+      The item template needs to be injected from light dom or it won't work.
+    </p>
+    <x-foo>
+      <!-- The item template needs to be injected from light dom or it won't work. -->
+      <template><div>{{item.value}}</div></template>
+    </x-foo>
   </div>
   <script>
   window.addEventListener('WebComponentsReady', function(e) {

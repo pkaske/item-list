@@ -109,7 +109,8 @@ The `paths` property can be used to tell `item-list` were to get values from the
          * @type {Array}
          */
         items: {
-          type: Array
+          type: Array,
+          value: []
         },
 
         /**
@@ -247,13 +248,14 @@ The `paths` property can be used to tell `item-list` were to get values from the
        * Get the item template and fill it into the `lazy-dom-repeat`.
        */
       ready: function() {
-        var itemTemplate = Polymer.dom(this).querySelector('template');
+        var itemTemplate = Polymer.dom(this.$.itemTemplate).getDistributedNodes();
 
-        if (!itemTemplate) {
+        if (!itemTemplate.length) {
           console.warn(this.tagName + ': Missing item template');
           return;
         }
 
+        itemTemplate = itemTemplate[0];
         var wrap = document.createElement('div');
         wrap.innerHTML = '<div item-id$="{{_computeItemId(item)}}" class="item" disabled$="{{isDisabled(item)}}"></div>';
         var itemNode = wrap.childNodes[0];

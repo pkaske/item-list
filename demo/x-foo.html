@@ -1,0 +1,13 @@
+<dom-module id="x-foo">
+  <template>
+    <item-list id="text-menu" items='[{"value":"apple"}, {"value":"cherry"}, {"value":"strawberry"}, {"value":"orange"}, {"value":"kiwi"}]' paths='{ "search": "value", "id": "value" }'>
+      <!-- The item template needs to be injected from light dom or it won't work. -->
+      <content select="template"></content>
+    </item-list>
+  </template>
+  <script>
+    Polymer({
+      is: 'x-foo'
+    });
+  </script>
+</dom-module>
