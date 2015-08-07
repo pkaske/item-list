@@ -321,6 +321,11 @@ The `paths` property can be used to tell `item-list` were to get values from the
         var removedItem = this.splice('items', index, 1);
         this.searchTerm = '';
 
+        // manually update this._filteredItems if this.items is empty because fuzzy-search will not produce a new result.
+        if (this.items.length == 0) {
+  			  this.splice('_filteredItems', index, 1);
+  		  }
+
         if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
           this.selection = null;
           this.selectedItem = null;
