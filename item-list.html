@@ -110,7 +110,9 @@ The `paths` property can be used to tell `item-list` were to get values from the
          */
         items: {
           type: Array,
-          value: []
+          value: function() {
+            return [];
+          }
         },
 
         /**
