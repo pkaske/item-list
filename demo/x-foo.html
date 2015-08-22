@@ -1,9 +1,24 @@
 <dom-module id="x-foo">
   <template>
-    <item-list id="text-menu" items='[{"value":"apple"}, {"value":"cherry"}, {"value":"strawberry"}, {"value":"orange"}, {"value":"kiwi"}]' paths='{ "search": "value", "id": "value" }'>
-      <!-- The item template needs to be injected from light dom or it won't work. -->
-      <content select="template"></content>
-    </item-list>
+    <style>
+      :host {
+        background: white;
+        padding: 20px;
+        border: dashed 2px grey;
+      }
+
+      h3 {
+        margin-top: 0;
+      }
+    </style>
+    <div class="wrap">
+      <h3>
+        I'm a x-foo element
+      </h3>
+      <item-list id="text-menu" items='[{"value":"apple"}, {"value":"cherry"}, {"value":"strawberry"}, {"value":"orange"}, {"value":"kiwi"}]' paths='{ "search": "value", "id": "value" }'>
+        <template preserve-content><div>{{item.value}}</div></template>
+      </item-list>
+    </div>
   </template>
   <script>
     Polymer({

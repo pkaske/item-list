@@ -19,6 +19,11 @@ Simple list of items that can be used to build drop-downs or other item list bas
 
 
 ## Example
+Add a `template` to the `item-list`. It serves as the item template and must have the `preserve-content` attribute.
+
+You can use data-binding expression as if you were working with a `dom-repeat` template.
+Use the `isDisabled(item)` method to set a class or attribute for disabled items. This works in conjunction with the `paths.disabled` setting.
+
 Use the `item` property to set a array of data objects to fill the list.
 
 The `paths` property can be used to tell `item-list` were to get values from the item objects for various actions:
@@ -31,7 +36,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
 ```html
 <item-list selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
-  <template>
+  <template preserve-content>
     <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
   </template>
 </item-list>
@@ -95,7 +100,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
     <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
       <lazy-dom-repeat id="ldr" items="[[_filteredItems]]">
-        <content id="itemTemplate" select="template"></content>
+        <content id="itemTemplate" select="template[preserve-content]"></content>
       </lazy-dom-repeat>
     </iron-selector>
   </template>

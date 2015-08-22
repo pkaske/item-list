@@ -15,8 +15,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <title>item-list Demo</title>
   <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
   <script>
-    // window.Polymer = window.Polymer || {};
-    // window.Polymer.dom = 'shadow';
+    window.Polymer = window.Polymer || {};
+    window.Polymer.dom = 'shadow';
   </script>
   <link rel="import" href="../item-list.html">
   <link rel="import" href="simple-item.html">
@@ -67,7 +67,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <input type="text" name="the-filter" value="">
 
       <item-list id="simple-menu" name="the-menu" selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
-        <template>
+        <template preserve-content>
           <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
         </template>
       </item-list>
@@ -86,7 +86,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       A simple text item list
     </p>
     <item-list id="text-menu" items='[{"value":"apple"}, {"value":"cherry"}, {"value":"strawberry"}, {"value":"orange"}, {"value":"kiwi"}]' paths='{ "search": "value", "id": "value" }'>
-      <template>
+      <template preserve-content>
         <div class="">{{item.value}}</div>
       </template>
     </item-list>
@@ -94,12 +94,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div class="layout vertical">
     <p>
       item-list used inside another custom element.<br>
-      The item template needs to be injected from light dom or it won't work.
     </p>
-    <x-foo>
-      <!-- The item template needs to be injected from light dom or it won't work. -->
-      <template><div>{{item.value}}</div></template>
-    </x-foo>
+    <x-foo></x-foo>
   </div>
   <script>
   window.addEventListener('WebComponentsReady', function(e) {
