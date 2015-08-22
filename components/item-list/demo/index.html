@@ -1,0 +1,139 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>item-list Demo</title>
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+    window.Polymer = window.Polymer || {};
+    window.Polymer.dom = 'shadow';
+  </script>
+  <link rel="import" href="../item-list.html">
+  <link rel="import" href="simple-item.html">
+  <link rel="import" href="x-foo.html">
+  <link rel="import" href="../../iron-icon/iron-icon.html">
+  <link rel="import" href="../../iron-icons/iron-icons.html">
+  <link rel="import" href="../../iron-flex-layout/classes/iron-flex-layout.html">
+  <link rel="import" href="../../iron-form/iron-form.html">
+
+  <style is="custom-style">
+    body > div {
+      margin: 20px;
+    }
+
+    item-list {
+      display: inline-block;
+      width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+
+      --item-list-item: {
+        /* styling for the items go here */
+        font-family: arial;
+      };
+    }
+
+    #text-menu {
+      --item-list-item: {
+        padding: 10px;
+      };
+    }
+
+    input[type="text"] {
+      margin-bottom: 20px;
+    }
+
+    #output {
+      width: 300px;
+    }
+  </style>
+
+</head>
+<body class="layout horizontal">
+  <div class="layout vertical">
+    <span>Filter me:</span>
+    <form is="iron-form" id="listForm" method="post" action="/" class="layout vertical">
+
+      <input type="text" name="the-filter" value="">
+
+      <item-list id="simple-menu" name="the-menu" selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
+        <template preserve-content>
+          <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
+        </template>
+      </item-list>
+
+      <p>
+        <button>Send me</button><br>
+        <br>
+        Output of the form:<br>
+        <div id="output"></div>
+      </p>
+
+    </form>
+  </div>
+  <div class="layout vertical">
+    <p>
+      A simple text item list
+    </p>
+    <item-list id="text-menu" items='[{"value":"apple"}, {"value":"cherry"}, {"value":"strawberry"}, {"value":"orange"}, {"value":"kiwi"}]' paths='{ "search": "value", "id": "value" }'>
+      <template preserve-content>
+        <div class="">{{item.value}}</div>
+      </template>
+    </item-list>
+  </div>
+  <div class="layout vertical">
+    <p>
+      item-list used inside another custom element.<br>
+    </p>
+    <x-foo></x-foo>
+  </div>
+  <script>
+  window.addEventListener('WebComponentsReady', function(e) {
+    var simpleMenuFilter = document.getElementsByName('the-filter')[0];
+    var simpleMenu = document.getElementById('simple-menu');
+
+    var data = [];
+    for (var i = 1; i <= 20; ++i) {
+      data.push({
+        name: 'Menu Item ' + i,
+        disabled: i % 5 ? true : false
+      });
+    }
+
+    data[5].info = 'Some info text';
+    simpleMenu.items = data;
+
+    simpleMenu.pathFunctions.id = function(item) {
+      return item.name;
+    };
+
+    simpleMenu.pathFunctions.disabled = function(item) {
+      return item.name == 'Menu Item 3';
+    };
+
+    simpleMenuFilter.addEventListener('keyup', function() {
+      simpleMenu.filterTerm = simpleMenuFilter.value;
+    });
+
+    simpleMenu.addEventListener('selection-changed', function(e) {
+      console.log(e.detail.value);
+    });
+
+    document.getElementById('listForm').addEventListener('iron-form-submit', function() {
+      var output = document.getElementById('output');
+      output.innerHTML = JSON.stringify(event.detail);
+    });
+  });
+  </script>
+</body>
+</html>

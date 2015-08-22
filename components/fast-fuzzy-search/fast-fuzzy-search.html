@@ -1,0 +1,31 @@
+<!--
+@license
+Copyright (c) 2015 Peter Kaske <p.kaske@gmail.com>. All rights reserved.
+This code may only be used under the MIT license found at http://opensource.org/licenses/MIT.
+Or see the LICENSE file that comes with this code.
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="fast-fuzzy-search-behavior.html">
+
+<!--
+Simple component that uses the tiny and blazing-fast [fuzzysearch](https://github.com/bevacqua/fuzzysearch) library to filter data.
+
+Example
+
+  <fast-fuzzy-search term="[[searchTerm]]" path="path.to.search.target" input='["Item 1", "Item 2", "Item 3"]' output="{{filteredItems}}"></fast-fuzzy-search>
+
+@group Data
+@element fast-fuzzy-search
+@demo http://pkaske.github.io/fast-fuzzy-search/components/fast-fuzzy-search/demo/
+@homepage https://github.com/pkaske/fast-fuzzy-search
+-->
+<dom-module id="fast-fuzzy-search"></dom-module>
+<script>
+  Polymer({
+    is: "fast-fuzzy-search",
+
+    behaviors: [
+      Polymer.FastFuzzySearchBehavior
+    ]
+  });
+</script>

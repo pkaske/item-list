@@ -1,0 +1,667 @@
+<!--
+@license
+Copyright (c) 2015 Peter Kaske <p.kaske@gmail.com>. All rights reserved.
+This code may only be used under the MIT license found at http://opensource.org/licenses/MIT.
+Or see the LICENSE file that comes with this code.
+-->
+
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../fast-fuzzy-search/fast-fuzzy-search.html">
+<link rel="import" href="../iron-selector/iron-selector.html">
+<link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../lazy-dom-repeat/lazy-dom-repeat.html">
+<link rel="import" href="../iron-form-element-behavior/iron-form-element-behavior.html">
+
+<!--
+# item-list
+Simple list of items that can be used to build drop-downs or other item list based things.
+
+
+## Example
+Add a `template` to the `item-list`. It serves as the item template and must have the `preserve-content` attribute.
+
+You can use data-binding expression as if you were working with a `dom-repeat` template.
+Use the `isDisabled(item)` method to set a class or attribute for disabled items. This works in conjunction with the `paths.disabled` setting.
+
+Use the `item` property to set a array of data objects to fill the list.
+
+The `paths` property can be used to tell `item-list` were to get values from the item objects for various actions:
+
+`paths.id`: The path to the property of each item to use as the `id`.
+
+`paths.search`: The path to the property of each item it should use to perform searches in. This is for filter and for focus search.
+
+`paths.disabled`: The path to the property to do a check on. If the property equals '1', true or 'true' the item is considered disabled.
+
+```html
+<item-list selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
+  <template preserve-content>
+    <simple-item disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></simple-item>
+  </template>
+</item-list>
+```
+
+@group GUI Elements
+@element item-list
+@demo demo/index.html
+@homepage https://pkaske.github.io/item-list
+-->
+
+<dom-module id="item-list">
+  <style>
+    :host {
+      display: block;
+      background: #FAFAFA;
+      outline: 0;
+      position: relative;
+
+      @apply(--item-list);
+    }
+
+    div.item:focus {
+      background: #EEEEEE;
+
+      @apply(--item-list-item-focus);
+    }
+
+    div.item:not([disabled]).iron-selected {
+      background: #4FC3F7;
+      color: #FFFFFF;
+
+      @apply(--item-list-selected);
+    }
+
+    .item {
+      outline: 0;
+      @apply(--layout-horizontal);
+      @apply(--layout-center);
+      cursor: pointer;
+
+      @apply(--item-list-item);
+    }
+
+    .item:hover {
+      background: #E0F7FA;
+
+      @apply(--item-list-item-hover);
+    }
+
+    .item[disabled] {
+      color: #9E9E9E;
+      pointer-events: none;
+
+      @apply(--item-list-disabled);
+    }
+  </style>
+  <template>
+    <!-- Provides fuzzy search -->
+    <fast-fuzzy-search id="fuzzySearch" term="[[filterTerm]]" path="[[paths.search]]" input="[[items]]" output={{_filteredItems}}></fast-fuzzy-search>
+
+    <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
+      <lazy-dom-repeat id="ldr" items="[[_filteredItems]]">
+        <content id="itemTemplate" select="template[preserve-content]"></content>
+      </lazy-dom-repeat>
+    </iron-selector>
+  </template>
+  <script>
+    Polymer({
+      is: 'item-list',
+
+      properties: {
+        /**
+         * List items to render
+         * @type {Array}
+         */
+        items: {
+          type: Array,
+          value: function() {
+            return [];
+          }
+        },
+
+        /**
+         * Id of the selected item.
+         */
+        selection: {
+          type: String,
+          notify: true,
+          observer: '_selectionChanged'
+        },
+
+        /**
+         * Paths inside the item objects to find various infos to build and run the list:
+         *
+         * Uses Polymer.Base.get() compatible syntax.
+         * id: The id for the list entries (Default: 'id')
+         * search: The field to perform the fuzzy searches in (Default: 'label')
+         * disabled: If this field is true, the according list entry will be shown as disabled.
+         */
+        paths: {
+          type: Object,
+          value: function(obj) {
+            var setPaths = obj.paths || {};
+
+            return this.mixin({
+              id: 'id',
+              search: 'label',
+              disabled: null
+            }, setPaths);
+          }
+        },
+
+        /**
+         * Provide callback functions for various list operations here.
+         * Every callback gets the current item as the first argument.
+         *
+         * id: Must return the id to set for the current item's element.
+         * disabled: Must return boolean true if the item disabled, false otherwise.
+         */
+        pathFunctions: {
+          type: Object,
+          value: function(obj) {
+            var pathFunc = obj.pathFunctions || {};
+
+            return this.mixin({
+              id: null,
+              disabled: null
+            }, pathFunc);
+          }
+        },
+
+        /**
+         * The currently selected item.
+         */
+        selectedItem: {
+          type: Object
+        },
+
+        /**
+         * The currently focused item.
+         */
+        focusedItem: {
+          type: Object
+        },
+
+        /**
+         * The list will be narrowed down to only the matching itmes.
+         */
+        filterTerm: {
+          type: String,
+          value: '',
+          observer: '_filterTermChanged'
+        },
+
+        /**
+         * The element will search for the first matching item and focus it.
+         */
+        searchTerm: {
+          type: String,
+          value: '',
+          observer: '_searchTermChanged'
+        },
+
+        /**
+         * List of items after filtered by fuzzy search.
+         */
+        _filteredItems: {
+          type: Array,
+          observer: '_filteredItemsChanged'
+        },
+
+        /**
+         * Neccessary to handle disabled items.
+         */
+        _tmpSelection: {
+          type: String,
+          observer: '_proxySelectionChange'
+        },
+
+        _gotFocus: {
+          type: Boolean,
+          value: false
+        }
+      },
+
+      behaviors: [
+        Polymer.IronA11yKeysBehavior,
+        Polymer.IronFormElementBehavior
+      ],
+
+      hostAttributes: {
+        'role': 'menu',
+        'tabindex': '0'
+      },
+
+      listeners: {
+        'keydown': '_onKeyDown',
+        'keyup': '_onKeyUp',
+        'tap': '_onTap'
+      },
+
+      keyBindings: {
+        'enter': '_onEnterKey'
+      },
+
+      attached: function() {
+        this.addEventListener('blur', this._onBlurHost.bind(this), true);
+      },
+
+      detached: function() {
+        this.removeEventListener('blur', this._onBlurHost);
+      },
+
+      /**
+       * Get the item template and fill it into the `lazy-dom-repeat`.
+       */
+      ready: function() {
+        var itemTemplate = Polymer.dom(this.$.itemTemplate).getDistributedNodes();
+
+        if (!itemTemplate.length) {
+          console.warn(this.tagName + ': Missing item template');
+          return;
+        }
+
+        itemTemplate = itemTemplate[0];
+        var wrap = document.createElement('div');
+        wrap.innerHTML = '<div item-id$="{{_computeItemId(item)}}" class="item" disabled$="{{isDisabled(item)}}"></div>';
+        var itemNode = wrap.childNodes[0];
+        itemNode.appendChild(itemTemplate.content);
+
+        var c = itemTemplate.content;
+        while (c.firstChild) {
+          c.removeChild(c.firstChild);
+        }
+
+        // Apply shady dom scoping.
+        Polymer.StyleTransformer.dom(itemNode, 'item-list');
+
+        itemTemplate.content.appendChild(itemNode);
+        Polymer.dom(this.$.ldr).appendChild(itemTemplate);
+        this.$.ldr.populate();
+      },
+
+      setItems: function(newItems) {
+        this.set('items', newItems);
+        this.$.fuzzySearch.reload();
+        this.searchTerm = '';
+        this._setValue();
+      },
+
+      addItems: function(item) {
+        if (Array.isArray(item)) {
+          for (var i = 0, li = item.length; i < li; ++i) {
+            this.push('items', item[i]);
+          }
+        } else {
+          this.push('items', item);
+        }
+
+        this.$.fuzzySearch.reload();
+        this.searchTerm = '';
+
+        this.fire('items-added', { added: item, items: this.items });
+      },
+
+      editItem: function(index, value, path) {
+        if (typeof index === 'object') {
+          var rIndex = this._getItemIndex(index, this.items);
+          index = this._getItemIndex(index, this._filteredItems);
+        }
+
+        this.set('items.' + (rIndex != undefined ? rIndex : index) + (path != undefined ? '.' + path : ''), value);
+        if (path) {
+          this.set('_filteredItems.' + index + (path ? '.' + path : ''), value)
+        }
+
+        this._setValue();
+        this.fire('item-edited', { edited: this.items[index], items: this.items });
+      },
+
+      removeItem: function(index) {
+        if (typeof index === 'object') {
+          index = this._getItemIndex(index, this.items);
+        }
+
+        if (index == undefined) return;
+
+        var removedItem = this.splice('items', index, 1);
+        this.searchTerm = '';
+
+        // manually update this._filteredItems if this.items is empty because fuzzy-search will not produce a new result.
+        if (this.items.length == 0) {
+  			  this.splice('_filteredItems', index, 1);
+  		  }
+
+        if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
+          this.selection = null;
+          this.selectedItem = null;
+        }
+
+        this._setValue();
+        this.fire('item-removed', { removed: removedItem[0], items: this.items });
+      },
+
+      _getElementByItem: function(item) {
+        return Polymer.dom(this.$.list).querySelector('[item-id="' + this.get(this.paths.id, item) + '"]');
+      },
+
+      _getElementById: function(id) {
+        return Polymer.dom(this.$.list).querySelector('[item-id="' + id + '"]');
+      },
+
+      _getItemById: function(id) {
+        for (var i = 0, li = this.items.length; i < li; ++i) {
+          if (this.get(this.paths.id, this.items[i]) == id) {
+            return this.items[i];
+          }
+        }
+      },
+
+      _getItemIndex: function(item, items) {
+        var id = this.get(this.paths.id, item);
+        for (var i = 0, li = items.length; i < li; ++i) {
+          if (this.get(this.paths.id, items[i]) == id) {
+            return i;
+          }
+        }
+      },
+
+      _moveSubAttribute: function(attr, id) {
+        var currentEl = Polymer.dom(this.$.list).querySelector('[' + attr + ']');
+        if (currentEl) {
+          currentEl.removeAttribute(attr);
+        }
+
+        var el = this._getElementById(id);
+        itemChildren = el.childNodes;
+
+        for (var i = 0, li = itemChildren.length; i < li; ++i) {
+          if (itemChildren[i].nodeType == Node.ELEMENT_NODE) {
+            itemChildren[i].setAttribute(attr, '');
+          }
+        }
+      },
+
+      _setValue: function() {
+        // For iron-form compatibility.
+        this.value = { selection: this.selection, items: this.items };
+      },
+
+      /** Try to restore the item selection after some model manipulation was done */
+      _restoreSelection: function() {
+        if (this.selection == undefined || this.selection == null) return;
+
+        var oldSelection = this.selection;
+        this.$.list.select(null);
+        this.async(function() {
+          if (this._getElementById(oldSelection)) {
+            this.$.list.select(oldSelection);
+          }
+        });
+      },
+
+      _proxySelectionChange: function(tmpSelection) {
+        if (tmpSelection == undefined || tmpSelection == null) return;
+
+        var item = this._getItemById(tmpSelection);
+        if (!this.isDisabled(item)) {
+          this.selectedItem = this.mixin({}, item);
+          this._setFocusedItem(this.selectedItem);
+          this.selection = tmpSelection;
+
+          this._moveSubAttribute('selected', tmpSelection);
+        }
+      },
+
+      _selectionChanged: function(select, oldSelection) {
+        if (oldSelection == undefined) return;
+
+        this.async(function() {
+          this._setValue();
+          this._tmpSelection = select;
+        }, 50);
+      },
+
+      /**
+       * Generate's the ids for all items in the list.
+       * @param  {Object} item The current item.
+       * @return {String}      The id for the current item.
+       */
+      _computeItemId: function(item) {
+        if (typeof this.pathFunctions.id == 'function') {
+          return this.pathFunctions.id(item);
+        } else {
+          return this.get(this.paths.id, item);
+        }
+      },
+
+      isSelected: function(item) {
+        if (!item) return false;
+
+        var id = this.get(this.paths.id, item);
+        if (id != undefined && id == this._tmpSelection) {
+          return true;
+        }
+      },
+
+      /**
+       * Determines if a item is disabled.
+       * This check can happen by providing a custom callback (set on `pathFunctions.disabled`).
+       * If a custom callback is used, the `paths.disabled` attribute is ignored.
+       *
+       * Default check with `paths.disabled`:
+       * If the property found under `paths.disabled` equals true, 'true' or '1' the item is considered disabled, otherwise enabled.
+       *
+       * @param  {Object} item The item to check.
+       * @return {Boolean}      True if disabled, false if enabled.
+       */
+      isDisabled: function(item) {
+        if (!item) return false;
+
+        if (typeof this.pathFunctions.disabled == 'function') {
+          return this.pathFunctions.disabled(item);
+        }
+
+        if (!this.paths.disabled) return false; // Not disabled.
+
+        var disField = this.get(this.paths.disabled, item);
+        if (disField == undefined) return false; // Not disabled.
+
+        if (disField == true || disField == '1' || disField == 'true') return true; // DISABLED item!
+      },
+
+      /**
+       * Fires the items-filtered event.
+       */
+      _filteredItemsChanged: function(filterItems) {
+        this._restoreSelection();
+        this._setValue();
+        this.fire('items-filtered', this._filteredItems);
+      },
+
+      /** Accessibility stuff */
+
+      focus: function() {
+        if (this._filteredItems.length == 0) return;
+
+        this.async(function() {
+          this._gotFocus = true;
+          this._setFocusedItem(this.selectedItem || this._filteredItems[0]);
+        }, 50);
+      },
+
+      _onBlurHost: function(e) {
+        if (Polymer.dom(e).rootTarget.tagName != 'ITEM-LIST') {
+          this._gotFocus = false;
+        }
+        this._searchTerm = '';
+      },
+
+      _onTap: function() {
+        this.blur();
+        this._gotFocus = true;
+        if (this.selectedItem) {
+          var el = this._getElementByItem(this.selectedItem);
+          if (el) {
+            this._setFocusedItem(this.selectedItem);
+            return;
+          }
+        }
+      },
+
+      _onKeyUp: function(e) {
+        // Element was focused by tab key.
+        if (this.keyboardEventMatchesKeys(e, 'shift+tab tab')) {
+          this.blur();
+          this._gotFocus = true;
+          if (this.selectedItem) {
+            var el = this._getElementByItem(this.selectedItem);
+            if (el) {
+              this._setFocusedItem(this.selectedItem);
+              return;
+            }
+          }
+
+          if (this._filteredItems.length > 0) {
+            for (var i in this._filteredItems) {
+              if (!this.isDisabled(this._filteredItems[i])) {
+                this._setFocusedItem(this._filteredItems[i]);
+                break;
+              }
+            }
+          }
+        }
+      },
+
+      _onKeyDown: function(e) {
+        // Reset focus search on special keys.
+        if (this.keyboardEventMatchesKeys(e, 'enter esc up down left right tab')) {
+          this.searchTerm = '';
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'up left')) {
+          this._focusPrev();
+          e.preventDefault();
+          return false;
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'down right')) {
+          this._focusNext();
+          e.preventDefault();
+          return false;
+        }
+
+        if (this.keyboardEventMatchesKeys(e, 'shift+tab tab')) {
+          this._gotFocus = false;
+        }
+
+        var char = String.fromCharCode(e.keyCode);
+        if (!char.match(/[^\x20-\x7E]+/)) {
+          this.searchTerm += char;
+        }
+      },
+
+      _onEnterKey: function() {
+        if (this.focusedItem) {
+          var id = this.get(this.paths.id, this.focusedItem);
+          if (id != undefined) {
+            this._proxySelectionChange(id);
+            this.$.list.select(id);
+          }
+        }
+      },
+
+      _searchTermChanged: function(term) {
+        if (term.length == 0) return;
+
+        var result = this.$.fuzzySearch.sideSearch(term, this._filteredItems, this.paths.search);
+        if (result.length > 0) {
+          // Find first non-disabled item and focus it.
+          for (var i in result) {
+            if (!this.isDisabled(result[i])) {
+              this._setFocusedItem(result[i]);
+              break;
+            }
+          }
+        }
+      },
+
+      _filterTermChanged: function() {
+        this.focusedItem = null;
+      },
+
+      /** Focus the previous item */
+      _focusPrev: function() {
+        var length = this._filteredItems.length;
+        var currentIndex = this._getItemIndex(this.focusedItem, this._filteredItems);
+        var index = (currentIndex - 1 + length) % length;
+
+        // Find next 'previous' item that isn't disabled.
+        while (this.isDisabled(this._filteredItems[index])) {
+          index = (index - 1 + length) % length;
+          if (index == currentIndex) break;
+        }
+        this._setFocusedItem(this._filteredItems[index]);
+        this._gotFocus = true;
+      },
+
+      /** Focus the next item */
+      _focusNext: function() {
+        var length = this._filteredItems.length;
+        var currentIndex = this._getItemIndex(this.focusedItem, this._filteredItems);
+        var index = (currentIndex + 1 + length) % length;
+
+        // Find next 'previous' item that isn't disabled.
+        while (this.isDisabled(this._filteredItems[index])) {
+          index = (index + 1 + length) % length;
+          if (index == currentIndex) break;
+        }
+        this._setFocusedItem(this._filteredItems[index]);
+        this._gotFocus = true;
+      },
+
+      /** Focus a item in the list. */
+      _setFocusedItem: function(item) {
+        if (!this._gotFocus) return; // Prevents focus on attach.
+
+        if (this.focusedItem) {
+          var oldEl = this._getElementByItem(this.focusedItem);
+          if (oldEl) {
+            if (oldEl.hasAttribute('disabled')) {
+              oldEl.removeAttribute('tabindex');
+            } else {
+              oldEl.setAttribute('tabindex', '-1');
+            }
+          }
+          this.focusedItem = null;
+        }
+
+        // Focus the new element.
+        if (item) {
+          var el = this._getElementByItem(item);
+          if (!el || el.hasAttribute('disabled')) return;
+
+          var id = this.get(this.paths.id, item);
+          if (id != undefined) {
+            this._moveSubAttribute('focused', id);
+          }
+
+          this.focusedItem = item;
+          el.setAttribute('tabindex', '0');
+          if (this._gotFocus) {
+            el.focus();
+          }
+        } else {
+          // Remove focus from all items.
+          Polymer.dom(this.$.list).querySelectorAll('[item-id]').forEach(function(el) {
+            if (!el.hasAttribute('disabled')) {
+              el.setAttribute('tabindex', '-1');
+            }
+            el.blur();
+          });
+        }
+      }
+    });
+  </script>
+</dom-module>

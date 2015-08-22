@@ -1,0 +1,72 @@
+<dom-module id="simple-item">
+  <style>
+    :host {
+      display: block;
+      padding: 10px 5px;
+
+      @apply(--layout-horizontal);
+      @apply(--layout-center);
+      @apply(--layout-flex);
+    }
+
+    :host([disabled]) {
+      background: #c1c1c1;
+      color: #dddddd;
+    }
+
+    :host([disabled]) .simple-item-icon {
+      color: #dddddd;
+      background: #c1c1c1;
+    }
+
+    :host([selected]) .simple-item-icon {
+      color: #4FC3F7;
+    }
+
+    .simple-item-icon {
+      color: #FFF;
+      border-radius: 50%;
+      background: #000;
+      padding: 10px;
+    }
+
+    .simple-item-label {
+      padding-left: 20px;
+    }
+  </style>
+  <template>
+    <div class="simple-item-icon">
+      <iron-icon id="itemIcon"></iron-icon>
+    </div>
+    <div class="simple-item-label">
+      <content select="span"></content>
+    </div>
+  </template>
+  <script>
+    Polymer({
+      is: 'simple-item',
+
+      _icons: [
+        'accessibility',
+        'android',
+        'announcement',
+        'assessment',
+        'backspace',
+        'check-box',
+        'cloud',
+        'credit-card',
+        'dashboard',
+        'drafts'
+      ],
+
+      attached: function() {
+        this._getRandomIcon();
+      },
+
+      _getRandomIcon: function() {
+        var max = 9, min = 0;
+        this.$.itemIcon.icon = this._icons[Math.round(Math.random() * (max - min) + min)];
+      }
+    });
+  </script>
+</dom-module>

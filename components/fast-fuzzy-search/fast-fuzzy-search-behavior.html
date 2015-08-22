@@ -1,0 +1,127 @@
+<script type="text/javascript" src="../fuzzysearch/index.js"></script>
+
+<!--
+@license
+Copyright (c) 2015 Peter Kaske <p.kaske@gmail.com>. All rights reserved.
+This code may only be used under the MIT license found at http://opensource.org/licenses/MIT.
+Or see the LICENSE file that comes with this code.
+-->
+<script>
+  if (Polymer.FastFuzzySearchBehavior) {
+    console.warn('FastFuzzySearchBehavior is already implemented in Polymer!');
+  }
+
+  Polymer.FastFuzzySearchImpl = {
+    properties: {
+
+      /**
+       * The search term
+       */
+      term: {
+        type: String,
+        value: '',
+        observer: '_search'
+      },
+
+      /**
+       * If searching in an array of objects, define the path of the value to use.
+       * Use a dotted syntax: 'name.of.property' or an array of path parts (e.g. ['path.to', 'property']).
+       * See `Polymer.Base.get(path, root)` for more infos.
+       */
+      path: {
+        type: String
+      },
+
+      /**
+       * Input data to search in.
+       * Can be an array of strings or objects.
+       * Use the `path` property with object arrays to define the property of each item were to search in.
+       */
+      input: {
+        type: Array
+      },
+
+      /**
+       * Output data. Is set with the search result.
+       */
+      output: {
+        type: Array,
+        notify: true
+      },
+
+      /**
+       * Defines if the search should be case-sensitiv.
+       */
+      caseSensitive: {
+        type: Boolean,
+        value: false
+      },
+
+      _lastTerm: {
+        type: String
+      }
+    },
+
+    observers: [
+      '_inputChanged(input.*)'
+    ],
+
+    /**
+     * Perform a fuzzy search completely aside from the behavior's configuration.
+     * @param  {String} term            The search term.
+     * @param  {Array} input            List of items to search in.
+     * @param  {String} path            Path to the haystack in each item.
+     * @param  {Boolean} caseSensitive  If the search should be case sensitive (insensitive by default).
+     * @return {Array}                  The filtered list of items.
+     */
+    sideSearch: function(term, input, path, caseSensitive) {
+      term = caseSensitive ? term : term.toLowerCase();
+      return input.filter(function(item) {
+        item = path ? this.get(this.path, item): item;
+        if (item === undefined) return false;
+        return fuzzysearch(term, caseSensitive ? item : item.toLowerCase());
+      }.bind(this));
+    },
+
+    reload: function() {
+      this._lastTerm = null;
+      this._search();
+    },
+
+    _search: function() {
+      if (!this.input || this.input.length == 0 || this.term === undefined) return;
+
+      if (this.term.length == 0 && this.term != this._lastTerm) {
+        this._lastTerm = '';
+        this.output = this.input.slice(0);
+        return;
+      }
+
+      if (this.term != this._lastTerm) {
+        this._lastTerm = this.term;
+        this.output = this.input.filter(this._compareItem.bind(this));
+      }
+    },
+
+    /**
+     * Run a single item through the fuzzy search.
+     * @param  {*} item String|Object to search in.
+     * @return {Boolean}
+     */
+    _compareItem: function(item) {
+      if (!this.term) return true;
+      item = this.path ? this.get(this.path, item): item;
+      if (item === undefined) return false;
+      item = this.caseSensitive ? item : item.toLowerCase();
+      return fuzzysearch(this.caseSensitive ? this.term : this.term.toLowerCase(), item);
+    },
+
+    _inputChanged: function(change) {
+      this.reload();
+    }
+  };
+
+  Polymer.FastFuzzySearchBehavior = [
+    Polymer.FastFuzzySearchImpl
+  ];
+</script>
