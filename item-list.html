@@ -100,7 +100,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
     <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
       <lazy-dom-repeat id="ldr" items="[[_filteredItems]]">
-        <content id="itemTemplate" select="template[preserve-content]"></content>
+        <content id="itemTemplate" select="template"></content>
       </lazy-dom-repeat>
     </iron-selector>
   </template>
@@ -325,18 +325,20 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
         if (index == undefined) return;
 
+        this._dontRestoreSelection = true;
         var removedItem = this.splice('items', index, 1);
         this.searchTerm = '';
 
-        // manually update this._filteredItems if this.items is empty because fuzzy-search will not produce a new result.
-        if (this.items.length == 0) {
-  			  this.splice('_filteredItems', index, 1);
-  		  }
-
+        // Test if the removed item was the selected one. This is neccessary the list is modified via api call.
         if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
           this.selection = null;
           this.selectedItem = null;
         }
+
+        // Manually update this._filteredItems if this.items is empty because fuzzy-search will not produce a new result.
+        if (this.items.length == 0) {
+  			  this.set('_filteredItems', []);
+  		  }
 
         this._setValue();
         this.fire('item-removed', { removed: removedItem[0], items: this.items });
@@ -388,9 +390,14 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.value = { selection: this.selection, items: this.items };
       },
 
-      /** Try to restore the item selection after some model manipulation was done */
+      /** Try to restore the item selection after list was filtered */
       _restoreSelection: function() {
         if (this.selection == undefined || this.selection == null) return;
+
+        if (this._dontRestoreSelection) {
+          this._dontRestoreSelection= false;
+          return;
+        }
 
         var oldSelection = this.selection;
         this.$.list.select(null);
