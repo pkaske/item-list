@@ -412,7 +412,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         if (tmpSelection == undefined || tmpSelection == null) return;
 
         var item = this._getItemById(tmpSelection);
-        if (!this.isDisabled(item)) {
+        if (item && !this.isDisabled(item)) {
           this.selectedItem = this.mixin({}, item);
           this._setFocusedItem(this.selectedItem);
           this.selection = tmpSelection;
