@@ -422,8 +422,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       _selectionChanged: function(select, oldSelection) {
-        if (oldSelection == undefined) return;
-
         this.async(function() {
           this._setValue();
           this._tmpSelection = select;
