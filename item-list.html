@@ -247,6 +247,10 @@ The `paths` property can be used to tell `item-list` were to get values from the
         'enter': '_onEnterKey'
       },
 
+      observers: [
+        '_itemsChanged(items.*)'
+      ],
+
       attached: function() {
         this.addEventListener('blur', this._onBlurHost.bind(this), true);
       },
@@ -285,11 +289,27 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.$.ldr.populate();
       },
 
+      _itemsChanged: function(change) {
+        if (change.path === 'items') {
+          this.$.fuzzySearch.reload();
+          this.searchTerm = '';
+          this._setValue();
+        }
+
+        if (change.path === 'items.splices') {
+          for (var i = 0, li = change.value.indexSplices.length; i < li; ++i) {
+            var splice = change.value.indexSplices[i];
+            if (splice.addedCount > 0) {
+              this.$.fuzzySearch.reload();
+              this.searchTerm = '';
+              this._setValue();
+            }
+          }
+        }
+      },
+
       setItems: function(newItems) {
         this.set('items', newItems);
-        this.$.fuzzySearch.reload();
-        this.searchTerm = '';
-        this._setValue();
       },
 
       addItems: function(item) {
@@ -300,9 +320,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
         } else {
           this.push('items', item);
         }
-
-        this.$.fuzzySearch.reload();
-        this.searchTerm = '';
 
         this.fire('items-added', { added: item, items: this.items });
       },
