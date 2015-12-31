@@ -102,7 +102,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
     <!-- Provides fuzzy search -->
     <fast-fuzzy-search id="fuzzySearch" term="[[filterTerm]]" path="[[paths.search]]" input="[[items]]" output={{_filteredItems}}></fast-fuzzy-search>
 
-    <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{_tmpSelection}}">
+    <iron-selector id="list" class="selector" attr-for-selected="item-id" selected="{{selection}}">
       <lazy-dom-repeat id="ldr" items="[[_filteredItems]]">
         <content id="itemTemplate" select="template"></content>
       </lazy-dom-repeat>
@@ -131,6 +131,22 @@ The `paths` property can be used to tell `item-list` were to get values from the
           type: String,
           notify: true,
           observer: '_selectionChanged'
+        },
+
+        /**
+         * The currently selected item.
+         */
+        selectedItem: {
+          type: Object,
+          notify: true
+        },
+
+        /**
+         * The currently focused item.
+         */
+        focusedItem: {
+          type: Object,
+          notify: true
         },
 
         /**
@@ -174,17 +190,12 @@ The `paths` property can be used to tell `item-list` were to get values from the
         },
 
         /**
-         * The currently selected item.
+         * Count of visible items after filtering.
          */
-        selectedItem: {
-          type: Object
-        },
-
-        /**
-         * The currently focused item.
-         */
-        focusedItem: {
-          type: Object
+        visibleCount: {
+          type: Number,
+          value: 0,
+          notify: true
         },
 
         /**
@@ -211,14 +222,6 @@ The `paths` property can be used to tell `item-list` were to get values from the
         _filteredItems: {
           type: Array,
           observer: '_filteredItemsChanged'
-        },
-
-        /**
-         * Neccessary to handle disabled items.
-         */
-        _tmpSelection: {
-          type: String,
-          observer: '_proxySelectionChange'
         },
 
         _gotFocus: {
@@ -290,21 +293,10 @@ The `paths` property can be used to tell `item-list` were to get values from the
       },
 
       _itemsChanged: function(change) {
-        if (change.path === 'items') {
+        if (change.path === 'items' || change.path === 'items.splices') {
           this.$.fuzzySearch.reload();
           this.searchTerm = '';
           this._setValue();
-        }
-
-        if (change.path === 'items.splices') {
-          for (var i = 0, li = change.value.indexSplices.length; i < li; ++i) {
-            var splice = change.value.indexSplices[i];
-            if (splice.addedCount > 0) {
-              this.$.fuzzySearch.reload();
-              this.searchTerm = '';
-              this._setValue();
-            }
-          }
         }
       },
 
@@ -324,10 +316,20 @@ The `paths` property can be used to tell `item-list` were to get values from the
         this.fire('items-added', { added: item, items: this.items });
       },
 
-      editItem: function(index, value, path) {
-        if (typeof index === 'object') {
-          var rIndex = this._getItemIndex(index, this.items);
-          index = this._getItemIndex(index, this._filteredItems);
+      /**
+       * Edit a item's property while taking filtering into consideration.
+       * This method must be used to edit items to ensure filtered items and all items are kept in sync.
+       *
+       * @param  {Object} item  Item object to edit. Can also be the index of the item in the current filtered set.
+       * @param  {?}      value Value to set on the path.
+       * @param  {String} path  Path to the property to set.
+       */
+      editItem: function(item, value, path) {
+        if (typeof item === 'object') {
+          var rIndex = this._getItemIndex(item, this.items);
+          var index = this._getItemIndex(item, this._filteredItems);
+        } else {
+          return this.editItem(this._filteredItems[item], value, path);
         }
 
         this.set('items.' + (rIndex != undefined ? rIndex : index) + (path != undefined ? '.' + path : ''), value);
@@ -336,7 +338,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         }
 
         this._setValue();
-        this.fire('item-edited', { edited: this.items[index], items: this.items });
+        this.fire('item-edited', { edited: this.items[rIndex], items: this.items });
       },
 
       removeItem: function(index) {
@@ -348,12 +350,11 @@ The `paths` property can be used to tell `item-list` were to get values from the
 
         this._dontRestoreSelection = true;
         var removedItem = this.splice('items', index, 1);
-        this.searchTerm = '';
 
-        // Test if the removed item was the selected one. This is neccessary the list is modified via api call.
+        // Test if the removed item was the selected one. This is necessary if the list is modified via api call.
         if (this.selection != undefined && this.selection == this.get(this.paths.id, removedItem[0])) {
-          this.selection = null;
           this.selectedItem = null;
+          this.selection = null;
         }
 
         // Manually update this._filteredItems if this.items is empty because fuzzy-search will not produce a new result.
@@ -421,32 +422,27 @@ The `paths` property can be used to tell `item-list` were to get values from the
         }
 
         var oldSelection = this.selection;
-        this.$.list.select(null);
-        this.async(function() {
-          if (this._getElementById(oldSelection)) {
-            this.$.list.select(oldSelection);
-          }
-        });
-      },
-
-      _proxySelectionChange: function(tmpSelection) {
-        if (tmpSelection == undefined || tmpSelection == null) return;
-
-        var item = this._getItemById(tmpSelection);
-        if (item && !this.isDisabled(item)) {
-          this.selectedItem = this.mixin({}, item);
-          this._setFocusedItem(this.selectedItem);
-          this.selection = tmpSelection;
-
-          this._moveSubAttribute('selected', tmpSelection);
+        if (this._getElementById(oldSelection)) {
+          this.selection = oldSelection;
         }
       },
 
-      _selectionChanged: function(select, oldSelection) {
-        this.async(function() {
+      /**
+       * If item isn't disabled, sync focus, set value and select list item.
+       */
+      _selectionChanged: function(selection) {
+        if (selection == undefined || selection == null) return;
+
+        var item = this._getItemById(selection);
+        if (item && !this.isDisabled(item)) {
+          this.selectedItem = item;
+          this._setFocusedItem(this.selectedItem);
+
           this._setValue();
-          this._tmpSelection = select;
-        }, 50);
+          this._moveSubAttribute('selected', selection);
+        } else {
+          this.selection = null;
+        }
       },
 
       /**
@@ -503,6 +499,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
       _filteredItemsChanged: function(filterItems) {
         this._restoreSelection();
         this._setValue();
+        this.visibleCount = this._filteredItems.length;
         this.fire('items-filtered', this._filteredItems);
       },
 
@@ -592,7 +589,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
         if (this.focusedItem) {
           var id = this.get(this.paths.id, this.focusedItem);
           if (id != undefined) {
-            this._proxySelectionChange(id);
+            this._selectionChanged(id);
             this.$.list.select(id);
           }
         }
