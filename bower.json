@@ -1,6 +1,6 @@
 {
   "name": "item-list",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "authors": [
     "Peter Kaske <p.kaske@gmail.com>"
   ],
@@ -30,6 +30,8 @@
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
     "iron-icon": "PolymerElements/iron-icon#^1.0.0",
-    "iron-form": "PolymerElements/iron-form#^1.0.0"
+    "iron-form": "PolymerElements/iron-form#^1.0.0",
+    "web-component-tester": "~4.1.0",
+    "test-fixture": "PolymerElements/test-fixture#^1.0.0"
   }
 }

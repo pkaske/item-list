@@ -118,10 +118,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
          * @type {Array}
          */
         items: {
-          type: Array,
-          value: function() {
-            return [];
-          }
+          type: Array
         },
 
         /**
@@ -431,7 +428,7 @@ The `paths` property can be used to tell `item-list` were to get values from the
        * If item isn't disabled, sync focus, set value and select list item.
        */
       _selectionChanged: function(selection) {
-        if (selection == undefined || selection == null) return;
+        if (selection == undefined || selection == null || !Array.isArray(this.items)) return;
 
         var item = this._getItemById(selection);
         if (item && !this.isDisabled(item)) {

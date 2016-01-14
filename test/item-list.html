@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Component tests</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../web-component-tester/browser.js"></script>
+
+  <link rel="import" href="../item-list.html">
+
+</head>
+<body>
+
+  <test-fixture id="firstMenu">
+    <template>
+      <item-list name="the-menu" selection="Menu Item 2" paths='{ "search": "name", "id": "name", "disabled": "disabled" }'>
+        <template preserve-content>
+          <div class="test-item" disabled$="{{isDisabled(item)}}"><span>{{item.name}}</span></div>
+        </template>
+      </item-list>
+    </template>
+  </test-fixture>
+
+  <script>
+    suite('<item-list>', function() {
+      var itemList;
+
+      setup(function() {
+        itemList = fixture('firstMenu');
+      });
+
+      test('shows items and item 5 is disabled', function(done) {
+        var data = [];
+        for (var i = 1; i <= 20; ++i) {
+          data.push({
+            name: 'Menu Item ' + i,
+            disabled: i == 5 ? true : false
+          });
+        }
+
+        itemList.items = data;
+
+        Polymer.Base.async(function() {
+          var items = itemList.$.list.querySelectorAll('.item');
+          expect(items.length).to.equal(20);
+          expect(itemList.isDisabled(itemList.items[4])).to.be.true;
+          done();
+        }, 100);
+      });
+
+      test('make selection after items were set', function(done) {
+        var data = [];
+        for (var i = 1; i <= 5; ++i) {
+          data.push({
+            name: 'Menu Item ' + i,
+          });
+        }
+
+
+        Polymer.Base.async(function() {
+          itemList.items = data;
+
+          Polymer.Base.async(function() {
+            expect(itemList.selection).to.equal('Menu Item 2');
+            expect(itemList.$.list.querySelector('.iron-selected').getAttribute('item-id')).to.equal('Menu Item 2');
+            done();
+          }, 100);
+        }, 100);
+      });
+
+    });
+  </script>
+</body>
+</html>
